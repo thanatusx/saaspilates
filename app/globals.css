@@ -1,26 +1,197 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Design tokens FRANKO — paleta FK: #024AAC / #09294D / #8FBBEA
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ground: #f2f0f1;
+  --surface: #ffffff;
+  --surface-2: #f7f9fb;
+  --surface-3: #edf1f6;
+  --line: #dce2ea;
+  --line-strong: #c3cdda;
+  --ink: #0f0f0f;
+  --ink-2: #3c4a5c;
+  --ink-3: #6b7b8f;
+
+  --brand: #024aac;
+  --brand-deep: #09294d;
+  --brand-sky: #8fbbea;
+  --brand-wash: #e8eff9;
+
+  --rail: #09294d;
+  --rail-ink: rgba(255, 255, 255, 0.7);
+  --rail-ink-strong: #ffffff;
+  --rail-line: rgba(143, 187, 234, 0.18);
+
+  --ok: #12855f;
+  --ok-wash: #e4f2ec;
+  --warn: #a8790c;
+  --warn-wash: #f7efdd;
+  --bad: #c4243f;
+  --bad-wash: #fbe7ea;
+  --info: #024aac;
+  --info-wash: #e8eff9;
+
+  --background: var(--ground);
+  --foreground: var(--ink);
+  color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0f0f0f;
+    --surface: #171c23;
+    --surface-2: #1d242c;
+    --surface-3: #232b35;
+    --line: #2b333e;
+    --line-strong: #3b4653;
+    --ink: #f2f0f1;
+    --ink-2: #b7c3d1;
+    --ink-3: #8796a8;
+
+    --brand: #5f8fde;
+    --brand-wash: #18293f;
+
+    --ok: #29a176;
+    --ok-wash: #12281f;
+    --warn: #b58722;
+    --warn-wash: #2a2113;
+    --bad: #d44e6b;
+    --bad-wash: #2c161c;
+    --info: #5f8fde;
+    --info-wash: #18293f;
   }
 }
 
+.dark {
+  color-scheme: dark;
+  --ground: #0f0f0f;
+  --surface: #171c23;
+  --surface-2: #1d242c;
+  --surface-3: #232b35;
+  --line: #2b333e;
+  --line-strong: #3b4653;
+  --ink: #f2f0f1;
+  --ink-2: #b7c3d1;
+  --ink-3: #8796a8;
+
+  --brand: #5f8fde;
+  --brand-wash: #18293f;
+
+  --ok: #29a176;
+  --ok-wash: #12281f;
+  --warn: #b58722;
+  --warn-wash: #2a2113;
+  --bad: #d44e6b;
+  --bad-wash: #2c161c;
+  --info: #5f8fde;
+  --info-wash: #18293f;
+}
+
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ground);
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+}
+
+/* ============================================================
+   Transição suave entre tema claro/escuro. Longhand (não o atalho
+   `transition`) e no seletor universal — a especificidade fica menor que
+   qualquer utilitário Tailwind (transition-transform, transition-opacity...),
+   então cada elemento com transição própria continua funcionando normalmente
+   e só herda a suavização de cor onde não há nada mais específico.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
+}
+
+/* ============================================================
+   Troca de tema — a transição de verdade acontece aqui, não elemento por
+   elemento. O botão de tema chama document.startViewTransition(), que tira
+   um "print" da tela inteira antes e depois da troca e faz UM crossfade
+   único e sincronizado — nada de cada card ou botão fazendo seu próprio fade
+   em velocidades diferentes. A regra de transição por elemento acima continua
+   servindo de fallback para navegadores sem suporte à API.
+   ============================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Animações de entrada — usadas nos cartões do Painel C.O.N.T.R.O.L,
+   indicadores e listas, para dar uma sensação de fluidez sem exagerar.
+   Sempre respeitando prefers-reduced-motion.
+   ============================================================ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-rise {
+    animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+  }
+  .animate-fade-in {
+    animation: fade-in 0.2s ease backwards;
+  }
+  /* Escalonamento automático para grades de até 12 itens (data-stagger). */
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 30ms; }
+  .stagger > *:nth-child(3) { animation-delay: 60ms; }
+  .stagger > *:nth-child(4) { animation-delay: 90ms; }
+  .stagger > *:nth-child(5) { animation-delay: 120ms; }
+  .stagger > *:nth-child(6) { animation-delay: 150ms; }
+  .stagger > *:nth-child(7) { animation-delay: 180ms; }
+  .stagger > *:nth-child(8) { animation-delay: 210ms; }
+  .stagger > *:nth-child(n+9) { animation-delay: 240ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise, .animate-fade-in {
+    animation: none;
+  }
 }
