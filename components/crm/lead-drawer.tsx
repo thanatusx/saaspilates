@@ -19,6 +19,7 @@ function emptyLead(): CrmLead {
     leadScore: 50,
     lastActivity: new Date().toISOString().slice(0, 10),
     obs: "",
+    journey: {},
   };
 }
 
@@ -30,7 +31,11 @@ export function LeadDrawerContent({ lead }: { lead?: CrmLead }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    upsertLead({ ...form, name: form.name.trim() || "Sem nome" });
+    const today = new Date().toISOString().slice(0, 10);
+    const journey = { ...form.journey };
+    if (!journey.novo) journey.novo = today;
+    if (!journey[form.stage]) journey[form.stage] = today;
+    upsertLead({ ...form, name: form.name.trim() || "Sem nome", journey });
     closeDrawer();
   }
 

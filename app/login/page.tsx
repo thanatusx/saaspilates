@@ -3,12 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,49 +31,63 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-(--ground) px-4">
-      <div className="w-full max-w-sm rounded-xl border border-(--line) bg-(--surface) p-6 shadow-sm">
-        <p className="text-[10px] font-bold tracking-widest text-(--brand)">FRANKO PILATES PRO</p>
-        <h1 className="mt-1 text-lg font-semibold text-(--ink)">Entrar na conta</h1>
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-(--ink-2)">E-mail</span>
+    <AuthShell>
+      <h1 className="text-2xl font-semibold text-(--ink)">Bem-vindo de volta</h1>
+      <p className="mt-1.5 text-[13px] text-(--ink-3)">Entre para acessar o painel dos seus studios.</p>
+
+      <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-medium text-(--ink-2)">E-mail</span>
+          <div className="relative">
+            <Mail size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-(--ink-3)" />
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--ink) outline-none focus:border-(--brand)"
+              placeholder="voce@studio.com"
+              className="w-full rounded-lg border border-(--line-strong) bg-(--surface) py-2.5 pl-9 pr-3 text-sm text-(--ink) outline-none transition-colors placeholder:text-(--ink-3) focus:border-(--brand)"
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-(--ink-2)">Senha</span>
+          </div>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-medium text-(--ink-2)">Senha</span>
+          <div className="relative">
+            <Lock size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-(--ink-3)" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--ink) outline-none focus:border-(--brand)"
+              className="w-full rounded-lg border border-(--line-strong) bg-(--surface) py-2.5 pl-9 pr-9 text-sm text-(--ink) outline-none transition-colors focus:border-(--brand)"
             />
-          </label>
-          {error ? <p className="text-[13px] text-(--bad)">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-(--brand) px-4 py-2 text-sm font-semibold text-white transition-[opacity,background-color] duration-150 hover:opacity-90 disabled:opacity-60"
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-        <p className="mt-4 text-center text-[13px] text-(--ink-3)">
-          Ainda não tem conta?{" "}
-          <Link href="/signup" className="font-medium text-(--brand) hover:underline">
-            Criar conta
-          </Link>
-        </p>
-      </div>
-    </div>
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              tabIndex={-1}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-(--ink-3) hover:text-(--ink-2)"
+            >
+              {showPassword ? <EyeOff size={16} strokeWidth={1.75} /> : <Eye size={16} strokeWidth={1.75} />}
+            </button>
+          </div>
+        </label>
+        {error ? <p className="rounded-lg bg-(--bad-wash) px-3 py-2 text-[13px] text-(--bad)">{error}</p> : null}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-(--brand) px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-(--brand-deep) disabled:opacity-60"
+        >
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+      <p className="mt-6 text-center text-[13px] text-(--ink-3)">
+        Acesso apenas por convite —{" "}
+        <Link href="/signup" className="font-medium text-(--brand) hover:underline">
+          fale com a FRANKO
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import { Saira, IBM_Plex_Sans, Geist_Mono } from "next/font/google";
-import { Sidebar } from "@/components/sidebar";
-import { StudioProvider } from "@/components/studio-context";
 import { ThemeInit } from "@/components/theme-init";
-import { DrawerProvider } from "@/components/drawer/drawer-context";
-import { SidebarProvider } from "@/components/sidebar-context";
 import "./globals.css";
 
 const saira = Saira({
@@ -36,16 +32,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${saira.variable} ${ibmPlexSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex h-full min-h-screen bg-(--ground)">
+      <body className="h-full min-h-screen bg-(--ground)">
         <ThemeInit />
-        <StudioProvider>
-          <SidebarProvider>
-            <DrawerProvider>
-              <Sidebar />
-              <main className="flex min-w-0 flex-1 flex-col">{children}</main>
-            </DrawerProvider>
-          </SidebarProvider>
-        </StudioProvider>
+        {children}
       </body>
     </html>
   );

@@ -27,6 +27,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  adminOnly?: boolean;
 }
 
 const ICON_PROPS = { size: 18, strokeWidth: 1.75 };
@@ -35,7 +36,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { mobileOpen, closeSidebar } = useSidebar();
-  const { studios, selectedStudio, currentMetrics, previousMetrics, season, crmLeads } = useStudio();
+  const { studios, selectedStudio, currentMetrics, previousMetrics, season, crmLeads, role } = useStudio();
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -64,18 +65,20 @@ export function Sidebar() {
         { href: "/lancar-dados", label: "Lançar Dados", icon: <PencilLine {...ICON_PROPS} /> },
         { href: "/crm", label: "CRM", icon: <Kanban {...ICON_PROPS} />, badge: crmLeads.length },
         { href: "/whatsapp", label: "WhatsApp", icon: <MessageCircle {...ICON_PROPS} />, badge: precisamResposta },
-        { href: "/secretaria", label: "Secretária", icon: <Headset {...ICON_PROPS} /> },
+        { href: "/secretaria", label: "Secretária", icon: <Headset {...ICON_PROPS} />, adminOnly: true },
         { href: "/trafego", label: "Tráfego", icon: <Megaphone {...ICON_PROPS} /> },
       ],
     },
     {
       label: "SISTEMA",
       items: [
-        { href: "/clientes", label: "Gestão de Clientes", icon: <Users {...ICON_PROPS} />, badge: studios.length },
+        { href: "/clientes", label: "Gestão de Clientes", icon: <Users {...ICON_PROPS} />, badge: studios.length, adminOnly: true },
         { href: "/configuracoes", label: "Configurações", icon: <Settings {...ICON_PROPS} /> },
       ],
     },
-  ];
+  ]
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.adminOnly || role === "admin") }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <>

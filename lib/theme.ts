@@ -36,7 +36,12 @@ export function applyThemeWithTransition(theme: Theme) {
     return;
   }
 
-  document.startViewTransition(() => setThemeAttributes(theme));
+  // Congela toda transição CSS individual enquanto a View Transition roda —
+  // ver o comentário de .theme-swap-freeze em app/globals.css.
+  const root = document.documentElement;
+  root.classList.add("theme-swap-freeze");
+  const transition = document.startViewTransition(() => setThemeAttributes(theme));
+  transition.finished.finally(() => root.classList.remove("theme-swap-freeze"));
 }
 
 export function currentTheme(): Theme {

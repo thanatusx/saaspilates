@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Granularity, QUINZENAS, aggregateWeeks, listMonths, monthLabel, weeksOfMonth } from "@/lib/period";
 import { SeasonKind, seasonForMonth } from "@/lib/seasonality";
@@ -65,6 +66,9 @@ interface StudioContextValue {
   moveLead: (leadId: string, stage: CrmStage) => void;
   upsertLead: (lead: CrmLead) => void;
   deleteLead: (leadId: string) => void;
+
+  /** Papel da conta logada — admin vê todos os studios, owner vê só o seu (via RLS). */
+  role: "admin" | "owner";
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -175,6 +179,7 @@ interface CrmLeadRow {
   lead_score: number;
   last_activity: string;
   obs: string;
+  journey: Partial<Record<CrmStage, string>>;
 }
 
 function mapCrmLeadRow(row: CrmLeadRow): CrmLead {
@@ -188,6 +193,7 @@ function mapCrmLeadRow(row: CrmLeadRow): CrmLead {
     leadScore: row.lead_score,
     lastActivity: row.last_activity,
     obs: row.obs,
+    journey: row.journey ?? {},
   };
 }
 
@@ -203,6 +209,7 @@ function crmLeadToRow(studioId: string, lead: CrmLead) {
     lead_score: lead.leadScore,
     last_activity: lead.lastActivity,
     obs: lead.obs,
+    journey: lead.journey,
   };
 }
 
@@ -213,12 +220,28 @@ function logIfError(action: string, error: { message: string } | null) {
 // ---------------------------------------------------------------------------
 // Tela de status cheia (loading / erro) — usada no lugar de `children` para
 // que nenhum dos consumidores de useStudio() precise saber lidar com "ainda
-// carregando" ou "sem sessão".
+// carregando", "sem sessão" ou "conta sem papel/studio configurado".
 // ---------------------------------------------------------------------------
-function FullPageStatus({ children }: { children: React.ReactNode }) {
+function FullPageStatus({ children, showSignOut = false }: { children: React.ReactNode; showSignOut?: boolean }) {
+  const router = useRouter();
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
   return (
-    <div className="flex min-h-screen items-center justify-center bg-(--ground) px-4">
-      <p className="text-sm text-(--ink-3)">{children}</p>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-(--ground) px-4 text-center">
+      <p className="max-w-sm text-sm text-(--ink-3)">{children}</p>
+      {showSignOut ? (
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="rounded-lg border border-(--line-strong) px-4 py-2 text-[13px] font-medium text-(--ink-2) hover:border-(--brand) hover:text-(--brand)"
+        >
+          Sair
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -350,8 +373,9 @@ function FirstStudioGate({ userId, onCreated }: { userId: string; onCreated: () 
 
 export function StudioProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
-  const [status, setStatus] = useState<"loading" | "ready" | "no-session">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "no-session" | "no-profile">("loading");
   const [userId, setUserId] = useState<string | null>(null);
+  const [role, setRole] = useState<"admin" | "owner">("owner");
   const [records, setRecords] = useState<Record<string, StudioRecord>>({});
   const [leadsByStudio, setLeadsByStudio] = useState<Record<string, CrmLead[]>>({});
   const [selectedStudioId, setSelectedStudioIdState] = useState<string>("");
@@ -372,6 +396,22 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) setStatus("no-session");
         return;
       }
+
+      const { data: profileRow, error: profileError } = await supabase
+        .from("profiles")
+        .select("role, studio_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      logIfError("carregar profile", profileError);
+
+      if (!profileRow) {
+        if (!cancelled) {
+          setUserId(user.id);
+          setStatus("no-profile");
+        }
+        return;
+      }
+      const resolvedRole = profileRow.role as "admin" | "owner";
 
       const { data: studioRows, error: studiosError } = await supabase
         .from("studios")
@@ -412,6 +452,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
 
       setUserId(user.id);
+      setRole(resolvedRole);
       setRecords(nextRecords);
       setLeadsByStudio(nextLeads);
 
@@ -428,7 +469,6 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, reloadTick]);
 
   function setSelectedStudioId(id: string) {
@@ -505,14 +545,23 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   }
 
   function moveLead(leadId: string, stage: CrmStage) {
+    const today = new Date().toISOString().slice(0, 10);
+    let nextJourney: Partial<Record<CrmStage, string>> | null = null;
     setLeadsByStudio((prev) => {
       const current = leadsFor(selectedStudioId);
-      const next = current.map((l) => (l.id === leadId ? { ...l, stage } : l));
+      const next = current.map((l) => {
+        if (l.id !== leadId) return l;
+        // Só grava a data na primeira vez que o lead chega nessa etapa —
+        // mover de volta e pra frente de novo não reescreve.
+        const journey = l.journey[stage] ? l.journey : { ...l.journey, [stage]: today };
+        nextJourney = journey;
+        return { ...l, stage, journey };
+      });
       return { ...prev, [selectedStudioId]: next };
     });
     supabase
       .from("crm_leads")
-      .update({ stage })
+      .update({ stage, journey: nextJourney })
       .eq("id", leadId)
       .then(({ error }) => logIfError("moveLead", error));
   }
@@ -635,9 +684,10 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       moveLead,
       upsertLead,
       deleteLead,
+      role,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, leadsByStudio, selectedStudioId, selectedMonthId, granularity, selectedWeek, selectedQuinzenaId]);
+  }, [records, leadsByStudio, selectedStudioId, selectedMonthId, granularity, selectedWeek, selectedQuinzenaId, role]);
 
   if (status === "loading") {
     return <FullPageStatus>Carregando seus dados...</FullPageStatus>;
@@ -645,8 +695,22 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   if (status === "no-session") {
     return <FullPageStatus>Sessão não encontrada — atualize a página para entrar novamente.</FullPageStatus>;
   }
+  if (status === "no-profile") {
+    return (
+      <FullPageStatus showSignOut>
+        Sua conta ainda não tem acesso configurado. Fale com o administrador para vincular seu login a um studio.
+      </FullPageStatus>
+    );
+  }
   if (!value) {
-    return <FirstStudioGate userId={userId!} onCreated={() => setReloadTick((t) => t + 1)} />;
+    if (role === "admin") {
+      return <FirstStudioGate userId={userId!} onCreated={() => setReloadTick((t) => t + 1)} />;
+    }
+    return (
+      <FullPageStatus showSignOut>
+        Nenhum studio vinculado à sua conta ainda. Fale com o administrador.
+      </FullPageStatus>
+    );
   }
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;

@@ -1,7 +1,21 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { StudioManager } from "@/components/clientes/studio-manager";
+import { useStudio } from "@/components/studio-context";
 
 export default function ClientesPage() {
+  const router = useRouter();
+  const { role } = useStudio();
+
+  useEffect(() => {
+    if (role !== "admin") router.replace("/");
+  }, [role, router]);
+
+  if (role !== "admin") return null;
+
   return (
     <>
       <PageHeader

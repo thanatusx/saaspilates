@@ -147,6 +147,17 @@ h1, h2, h3, h4 {
   }
 }
 
+/* Enquanto a View Transition da troca de tema está rodando, congela toda
+   transição CSS individual (hover, etc.) — sem isso, um card com sua própria
+   transição de cor anima em paralelo ao crossfade da página inteira e "chega
+   atrasado" depois que ele termina, dando a impressão de delay só naquele
+   card. lib/theme.ts adiciona/remove esta classe na <html> ao redor de
+   document.startViewTransition(). */
+.theme-swap-freeze,
+.theme-swap-freeze * {
+  transition: none !important;
+}
+
 /* ============================================================
    Animações de entrada — usadas nos cartões do Painel C.O.N.T.R.O.L,
    indicadores e listas, para dar uma sensação de fluidez sem exagerar.

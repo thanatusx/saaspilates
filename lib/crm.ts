@@ -54,6 +54,8 @@ export interface CrmLead {
   leadScore: number; // 0-100
   lastActivity: string; // "dd/mm hh:mm"
   obs: string;
+  /** Data (YYYY-MM-DD) em que o lead entrou em cada etapa pela primeira vez — alimenta o funil por período. */
+  journey: Partial<Record<CrmStage, string>>;
 }
 
 function makeLeads(studioId: string, names: [string, CrmStage, CrmOrigin, number, string][]): CrmLead[] {
@@ -67,6 +69,7 @@ function makeLeads(studioId: string, names: [string, CrmStage, CrmOrigin, number
     leadScore: score,
     lastActivity: `${(26 - (i % 20)).toString().padStart(2, "0")}/08 ${(8 + (i % 10)).toString().padStart(2, "0")}:${(i * 7) % 60}`.replace(/:(\d)$/, ":0$1"),
     obs,
+    journey: {},
   }));
 }
 

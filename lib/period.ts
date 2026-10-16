@@ -188,3 +188,64 @@ export function aggregateWeeks(weeks: WeeklyEntry[], rangeLabel: string): Aggreg
 
 // Paleta categórica fixa (ordem nunca trocada) — slots 1..5 da paleta padrão.
 export const CATEGORICAL_SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+
+// ---------------------------------------------------------------------------
+// Ponte pra integrações externas que exigem data de calendário (Meta Ads
+// Insights, por ex.) — o modelo de período do app não guarda datas reais por
+// semana (S01-S04 são só rótulos dentro de um mês), então aproximamos cada
+// semana a uma faixa fixa de dias. É uma aproximação documentada, não uma
+// data exata — mudar isso pra datas reais por semana é escopo bem maior.
+// ---------------------------------------------------------------------------
+const WEEK_DAY_BAND: Record<WeekLabel, [number, number | null]> = {
+  S01: [1, 7],
+  S02: [8, 14],
+  S03: [15, 21],
+  S04: [22, null], // null = até o último dia do mês
+};
+
+function daysInMonth(year: number, month1to12: number): number {
+  return new Date(year, month1to12, 0).getDate();
+}
+
+function monthBounds(periodId: string): { year: number; month: number; lastDay: number } {
+  const [year, month] = periodId.split("-").map(Number);
+  return { year, month, lastDay: daysInMonth(year, month) };
+}
+
+function dateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** since/until (YYYY-MM-DD) pro período atualmente selecionado no app. */
+export function periodDateRange(
+  months: string[],
+  granularity: Granularity,
+  monthId: string,
+  week: WeekLabel,
+  quinzenaId: "Q1" | "Q2"
+): { since: string; until: string } {
+  if (granularity === "historico") {
+    if (months.length === 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      return { since: today, until: today };
+    }
+    const first = monthBounds(months[0]);
+    const last = monthBounds(months[months.length - 1]);
+    return { since: dateStr(first.year, first.month, 1), until: dateStr(last.year, last.month, last.lastDay) };
+  }
+
+  const { year, month, lastDay } = monthBounds(monthId);
+
+  if (granularity === "mes") {
+    return { since: dateStr(year, month, 1), until: dateStr(year, month, lastDay) };
+  }
+
+  if (granularity === "quinzena") {
+    if (quinzenaId === "Q1") return { since: dateStr(year, month, 1), until: dateStr(year, month, Math.min(14, lastDay)) };
+    return { since: dateStr(year, month, Math.min(15, lastDay)), until: dateStr(year, month, lastDay) };
+  }
+
+  const [start, endRaw] = WEEK_DAY_BAND[week];
+  const end = Math.min(endRaw ?? lastDay, lastDay);
+  return { since: dateStr(year, month, Math.min(start, lastDay)), until: dateStr(year, month, end) };
+}
